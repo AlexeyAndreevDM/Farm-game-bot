@@ -108,7 +108,8 @@ def register_registration_handlers(bot: TeleBot):
                 name=state.name,
                 money=INITIAL_MONEY,
                 animals=animals_str,
-                ad_animals=''
+                ad_animals='',
+                total_assets=INITIAL_MONEY
             )
             state.money = INITIAL_MONEY
             logger.info(f"Created new user: {state.us_name}")

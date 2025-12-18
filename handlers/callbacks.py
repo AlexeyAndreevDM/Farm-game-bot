@@ -5,8 +5,8 @@ from telebot import TeleBot
 from utils.keyboards import get_help_keyboard
 from utils.messages import HELP_MESSAGE
 from utils.helpers import get_random_phrase, format_sell_prices
-from config.settings import get_sell_prices
-from handlers.shop import show_available_goods, sell_prices
+from utils.price_manager import price_manager
+from handlers.shop import show_available_goods
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ def register_callback_handlers(bot: TeleBot):
                 myinfo_command(call.message)
             
             elif command == '/sell':
+                sell_prices = price_manager.get_sell_prices()
                 sell_prices_text = format_sell_prices(sell_prices)
                 bot.send_message(
                     call.message.chat.id,

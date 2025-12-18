@@ -19,12 +19,9 @@ from utils.helpers import (
     format_sell_prices, animals_dict_to_string
 )
 from handlers.start import get_user_state
+from utils.price_manager import price_manager
 
 logger = logging.getLogger(__name__)
-
-# Глобальные цены (обновляются при старте)
-animal_prices = get_animal_prices()
-sell_prices = get_sell_prices()
 
 
 def register_shop_handlers(bot: TeleBot):
@@ -34,6 +31,7 @@ def register_shop_handlers(bot: TeleBot):
     def cost_command(message):
         """Показать цены на покупку животных."""
         try:
+            animal_prices = price_manager.get_animal_prices()
             prices = list(animal_prices.values())
             bot.send_message(
                 message.chat.id,
@@ -88,6 +86,7 @@ def register_shop_handlers(bot: TeleBot):
         """Команда продажи."""
         try:
             # Показать расценки на продажу
+            sell_prices = price_manager.get_sell_prices()
             sell_prices_text = format_sell_prices(sell_prices)
             bot.send_message(
                 message.chat.id,
@@ -99,7 +98,7 @@ def register_shop_handlers(bot: TeleBot):
         except Exception as e:
             logger.error(f"Error in sell_command: {e}")
     
-    @bot.message_handler(func=lambda message: message.text in sell_prices and get_user_state(message.from_user.first_name).desire == 'sell')
+    @bot.message_handler(func=lambda message: message.text in price_manager.get_sell_prices() and get_user_state(message.from_user.first_name).desire == 'sell')
     def select_item_to_sell(message):
         """Выбор товара для продажи."""
         us_name = message.from_user.first_name
@@ -123,6 +122,7 @@ def register_shop_handlers(bot: TeleBot):
         state = get_user_state(us_name)
         
         try:
+            animal_prices = price_manager.get_animal_prices()
             max_amount = state.money // animal_prices[state.buyan]
             is_valid, amount = validate_amount_input(message.text, max_amount)
             
@@ -149,7 +149,7 @@ def register_shop_handlers(bot: TeleBot):
                 reply_markup=get_help_keyboard()
             )
             
-            # Сохранение в БД
+            # Сохранение в БД с обновлением total_assets
             update_user_data(state)
             state.desire = ''
             
@@ -196,12 +196,25 @@ def update_user_data(state):
     """Обновление данных пользователя в БД."""
     try:
         animals_str = animals_dict_to_string(state.count_dict)
+        
+        # Подсчет total_assets
+        sell_prices = price_manager.get_sell_prices()
+        animals_value = 0
+        for animal, count in state.count_dict.items():
+            if animal in sell_prices and count > 0:
+                price_dict = sell_prices[animal]
+                if 1 in price_dict:
+                    animals_value += price_dict[1] * count
+        
+        total_assets = state.money + animals_value
+        
         db_manager.update_user(
             us_name=state.us_name,
             name=state.name,
             money=state.money,
             animals=animals_str,
-            ad_animals=''
+            ad_animals='',
+            total_assets=total_assets
         )
     except Exception as e:
         logger.error(f"Error updating user data: {e}")

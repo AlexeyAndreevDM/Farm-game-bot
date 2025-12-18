@@ -18,6 +18,9 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# Cache
+prices_cache.json
+
 # IDEs
 .vscode/
 .idea/

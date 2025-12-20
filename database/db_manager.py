@@ -36,7 +36,7 @@ class DatabaseManager:
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
-                # Создание таблицы
+                # Создание таблицы пользователей
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS goods (
                         us_name TEXT PRIMARY KEY,
@@ -45,6 +45,17 @@ class DatabaseManager:
                         animals TEXT NOT NULL,
                         ad_animals TEXT NOT NULL,
                         total_assets INTEGER DEFAULT 0
+                    )
+                ''')
+                
+                # Создание таблицы статистики покупок для динамических цен
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS purchase_stats (
+                        animal_name TEXT PRIMARY KEY,
+                        purchase_count INTEGER DEFAULT 0,
+                        base_price INTEGER NOT NULL,
+                        current_price INTEGER NOT NULL,
+                        last_reset TEXT NOT NULL
                     )
                 ''')
                 
@@ -201,10 +212,8 @@ class DatabaseManager:
                     animals_value = 0
                     for animal, count in animals_dict.items():
                         if animal in sell_prices and count > 0:
-                            # Используем цену продажи для 1 животного
-                            price_dict = sell_prices[animal]
-                            if 1 in price_dict:
-                                animals_value += price_dict[1] * count
+                            # Используем цену продажи
+                            animals_value += sell_prices[animal] * count
                     
                     total_assets = money + animals_value
                     
@@ -216,6 +225,67 @@ class DatabaseManager:
                 logger.info("Updated total_assets for all users")
         except Exception as e:
             logger.error(f"Error updating all total_assets: {e}")
+
+
+    def record_purchase(self, animal_name: str, quantity: int):
+        """Записать покупку животного для статистики."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    '''UPDATE purchase_stats 
+                       SET purchase_count = purchase_count + ? 
+                       WHERE animal_name = ?''',
+                    (quantity, animal_name)
+                )
+                logger.info(f"Recorded purchase: {quantity}x {animal_name}")
+        except Exception as e:
+            logger.error(f"Error recording purchase: {e}")
+    
+    def get_purchase_stats(self) -> dict:
+        """Получить статистику покупок всех животных."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                result = cursor.execute(
+                    'SELECT animal_name, purchase_count, base_price, current_price FROM purchase_stats'
+                ).fetchall()
+                return {row[0]: {'purchase_count': row[1], 'base_price': row[2], 'current_price': row[3]} 
+                       for row in result}
+        except Exception as e:
+            logger.error(f"Error getting purchase stats: {e}")
+            return {}
+    
+    def reset_purchase_stats(self, new_prices: dict):
+        """Сбросить статистику покупок и обновить цены."""
+        try:
+            import datetime as dt
+            now = dt.datetime.now().isoformat()
+            
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                for animal, price in new_prices.items():
+                    cursor.execute(
+                        '''INSERT OR REPLACE INTO purchase_stats 
+                           (animal_name, purchase_count, base_price, current_price, last_reset)
+                           VALUES (?, 0, ?, ?, ?)''',
+                        (animal, price, price, now)
+                    )
+                logger.info("Reset purchase stats and updated prices")
+        except Exception as e:
+            logger.error(f"Error resetting purchase stats: {e}")
+    
+    def update_current_price(self, animal_name: str, new_price: int):
+        """Обновить текущую цену животного."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'UPDATE purchase_stats SET current_price = ? WHERE animal_name = ?',
+                    (new_price, animal_name)
+                )
+        except Exception as e:
+            logger.error(f"Error updating price: {e}")
 
 
 # Глобальный экземпляр менеджера БД

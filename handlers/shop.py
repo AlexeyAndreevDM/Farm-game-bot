@@ -134,6 +134,9 @@ def register_shop_handlers(bot: TeleBot):
             state.count_dict[state.buyan] += amount
             state.money -= animal_prices[state.buyan] * amount
             
+            # Записываем статистику покупки для динамического ценообразования
+            db_manager.record_purchase(state.buyan, amount)
+            
             # Добавление в растущие животные
             grow_time = ANIMALS_GROW_TIME[state.buyan]
             grow_until = (dt.datetime.now() + dt.timedelta(hours=grow_time)).strftime("%A %d-%B-%y %H:%M:%S")

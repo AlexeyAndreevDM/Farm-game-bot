@@ -18,41 +18,57 @@ def register_callback_handlers(bot: TeleBot):
     def callback_query(call):
         """Обработчик всех callback-запросов."""
         try:
+            logger.info(f"Callback received: {call.data} from user {call.from_user.first_name}")
             req = call.data.split('_')
             command = req[0]
             
             if command == '/help':
+                logger.info(f"Processing /help callback")
                 bot.send_message(call.message.chat.id, HELP_MESSAGE)
                 bot.send_message(
                     call.message.chat.id,
                     get_random_phrase(),
                     reply_markup=get_help_keyboard()
                 )
+                logger.info(f"/help callback completed")
             
             elif command == '/top':
-                from handlers.info import top_command
-                top_command(call.message)
+                logger.info(f"Processing /top callback")
+                from handlers import info as info_mod
+                info_mod.top_command_impl(bot, call.message)
+                logger.info(f"/top callback completed")
             
             elif command == '/cost':
-                from handlers.shop import cost_command
-                cost_command(call.message)
+                logger.info(f"Processing /cost callback")
+                from handlers import shop as shop_mod
+                shop_mod.cost_command_impl(bot, call.message)
+                logger.info(f"/cost callback completed")
             
             elif command == '/buy':
-                from handlers.shop import buy_command
-                buy_command(call.message)
+                logger.info(f"Processing /buy callback")
+                from handlers import shop as shop_mod
+                shop_mod.buy_command_impl(bot, call.message)
+                logger.info(f"/buy callback completed")
             
             elif command == '/myinfo':
-                from handlers.info import myinfo_command
-                myinfo_command(call.message)
+                logger.info(f"Processing /myinfo callback")
+                from handlers import info as info_mod
+                info_mod.myinfo_command_impl(bot, call.message)
+                logger.info(f"/myinfo callback completed")
             
             elif command == '/sell':
+                logger.info(f"Processing /sell callback")
                 sell_prices = price_manager.get_sell_prices()
-                sell_prices_text = format_sell_prices(sell_prices)
-                bot.send_message(
-                    call.message.chat.id,
-                    f'Вот расценки для продаж:\n\n{sell_prices_text}'
-                )
+                logger.info(f"Got sell prices: {type(sell_prices)}, keys: {list(sell_prices.keys()) if isinstance(sell_prices, dict) else 'not dict'}")
+                
+                # Форматируем цены вручную (sell_prices это просто {animal: price})
+                sell_text = "Расценки для продаж:\n\n"
+                for animal, price in sell_prices.items():
+                    sell_text += f"{animal}: {price} ₽\n"
+                
+                bot.send_message(call.message.chat.id, sell_text)
                 show_available_goods(bot, call.message)
+                logger.info(f"/sell callback completed")
             
         except Exception as e:
             logger.error(f"Error in callback_query: {e}")

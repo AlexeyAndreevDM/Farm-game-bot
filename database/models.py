@@ -18,7 +18,7 @@ class UserState:
     """Состояние пользователя в боте."""
     us_name: str
     name: str = ''
-    money: int = 0
+    money: int = 50000  # Начальный баланс 50000
     desire: str = ''  # 'buy' или 'sell'
     buyan: str = ''  # Животное для покупки
     sell_it: str = ''  # Животное/продукт для продажи

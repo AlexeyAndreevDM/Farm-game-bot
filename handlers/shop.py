@@ -8,7 +8,7 @@ from config.settings import (
     ANIMALS, ANIMALS_GROW_TIME, get_animal_prices, get_sell_prices,
     ANIMAL_IMAGES, SELL_IMAGES
 )
-from utils.keyboards import get_animals_keyboard, get_sell_keyboard, get_help_keyboard
+from utils.keyboards import get_animals_keyboard, get_sell_keyboard, get_help_keyboard, get_back_keyboard
 from utils.messages import (
     BUY_PROMPT, BUY_AMOUNT_PROMPT, BUY_SUCCESS, BUY_INVALID_AMOUNT,
     SELL_PROMPT, SELL_AMOUNT_PROMPT, SELL_PRICES_HEADER, SELL_AVAILABLE_HEADER,
@@ -68,6 +68,28 @@ def buy_command_impl(bot: TeleBot, message):
 def register_shop_handlers(bot: TeleBot):
     """Регистрирует обработчики магазина."""
     
+    # Обработчик кнопки "Назад"
+    @bot.message_handler(func=lambda message: message.text == '❌ Назад')
+    def back_button(message):
+        """Обработчик кнопки Назад - отмена действия."""
+        us_name = message.from_user.first_name
+        state = get_user_state(us_name)
+        
+        try:
+            logger.info(f"back_button: user {us_name}, clearing desire='{state.desire}'")
+            state.desire = ''
+            state.buyan = ''
+            state.sell_it = ''
+            
+            bot.send_message(
+                message.chat.id,
+                "↩️ Действие отменено. Возвращаемся в главное меню.",
+                reply_markup=get_help_keyboard()
+            )
+            logger.info(f"back_button: returned to main menu")
+        except Exception as e:
+            logger.error(f"Error in back_button: {e}", exc_info=True)
+    
     @bot.message_handler(func=lambda message: message.text == '/cost')
     def cost_command(message):
         """Показать цены на покупку животных."""
@@ -98,14 +120,17 @@ def register_shop_handlers(bot: TeleBot):
         state = get_user_state(us_name)
         
         try:
-            logger.info(f"buy_command: user {us_name}, setting desire='buy'")
+            logger.info(f"buy_command: user {us_name}, setting desire='buy', current balance={state.money}")
             state.desire = 'buy'
+            
+            # Показать баланс пользователя
+            balance_text = f"💰 Ваш баланс: {state.money} ₽\n\n{BUY_PROMPT}"
             bot.send_message(
                 message.chat.id,
-                BUY_PROMPT,
+                balance_text,
                 reply_markup=get_animals_keyboard()
             )
-            logger.info(f"buy_command: sent keyboard")
+            logger.info(f"buy_command: sent keyboard to {us_name}")
         except Exception as e:
             logger.error(f"Error in buy_command: {e}", exc_info=True)
     
@@ -116,29 +141,46 @@ def register_shop_handlers(bot: TeleBot):
         state = get_user_state(us_name)
         
         try:
-            logger.info(f"select_animal_to_buy: user {us_name} selected {message.text}")
+            logger.info(f"select_animal_to_buy: user {us_name} selected '{message.text}', desire='{state.desire}'")
             state.buyan = message.text
             
             # Отправка фото животного
             if state.buyan in ANIMAL_IMAGES:
                 bot.send_photo(message.chat.id, ANIMAL_IMAGES[state.buyan])
             
-            bot.send_message(message.chat.id, BUY_AMOUNT_PROMPT)
-            logger.info(f"select_animal_to_buy: asked for amount")
+            # Показать цену и баланс
+            animal_prices = price_manager.get_animal_prices()
+            price = animal_prices[state.buyan]
+            max_can_buy = state.money // price
+            
+            buy_info = f"💰 Ваш баланс: {state.money} ₽\n"
+            buy_info += f"💵 Цена за {state.buyan}: {price} ₽\n"
+            buy_info += f"📊 Максимум можете купить: {max_can_buy}\n\n"
+            buy_info += BUY_AMOUNT_PROMPT
+            
+            bot.send_message(message.chat.id, buy_info, reply_markup=get_back_keyboard())
+            logger.info(f"select_animal_to_buy: user {us_name} can buy max {max_can_buy}")
         except Exception as e:
             logger.error(f"Error in select_animal_to_buy: {e}", exc_info=True)
     
     @bot.message_handler(func=lambda message: message.text == '/sell')
     def sell_command(message):
         """Команда продажи."""
+        us_name = message.from_user.first_name
+        state = get_user_state(us_name)
+        
         try:
-            logger.info(f"sell_command: user {message.from_user.first_name}")
+            logger.info(f"sell_command: user {us_name}, balance={state.money}")
+            
+            # Показать баланс
+            balance_text = f"💰 Ваш баланс: {state.money} ₽\n\n"
+            
             # Показать расценки на продажу
             sell_prices = price_manager.get_sell_prices()
             logger.info(f"sell_command: got {len(sell_prices)} prices")
             
             # Форматируем цены вручную (sell_prices это {animal: price})
-            sell_text = "Расценки для продаж:\n\n"
+            sell_text = balance_text + "Расценки для продаж:\n\n"
             for animal, price in sell_prices.items():
                 sell_text += f"{animal}: {price} ₽\n"
             
@@ -146,7 +188,7 @@ def register_shop_handlers(bot: TeleBot):
             
             # Показать доступные для продажи товары
             show_available_goods(bot, message)
-            logger.info(f"sell_command: completed")
+            logger.info(f"sell_command: completed for {us_name}")
         except Exception as e:
             logger.error(f"Error in sell_command: {e}", exc_info=True)
     
@@ -157,15 +199,24 @@ def register_shop_handlers(bot: TeleBot):
         state = get_user_state(us_name)
         
         try:
-            logger.info(f"select_item_to_sell: user {us_name} selected {message.text}")
+            logger.info(f"select_item_to_sell: user {us_name} selected '{message.text}', desire='{state.desire}'")
             state.sell_it = message.text
             
             # Отправка фото
             if state.sell_it in SELL_IMAGES:
                 bot.send_photo(message.chat.id, SELL_IMAGES[state.sell_it])
             
-            bot.send_message(message.chat.id, SELL_AMOUNT_PROMPT)
-            logger.info(f"select_item_to_sell: asked for amount")
+            # Показать информацию о текущем количестве
+            current_count = state.count_dict.get(state.sell_it, 0)
+            sell_price = price_manager.get_sell_prices()[state.sell_it]
+            
+            sell_info = f"📦 У вас есть: {current_count} {state.sell_it}\n"
+            sell_info += f"💵 Цена продажи: {sell_price} ₽\n"
+            sell_info += f"💰 Текущий баланс: {state.money} ₽\n\n"
+            sell_info += SELL_AMOUNT_PROMPT
+            
+            bot.send_message(message.chat.id, sell_info, reply_markup=get_back_keyboard())
+            logger.info(f"select_item_to_sell: user {us_name} has {current_count} of {state.sell_it}")
         except Exception as e:
             logger.error(f"Error in select_item_to_sell: {e}", exc_info=True)
     
@@ -217,6 +268,18 @@ def register_shop_handlers(bot: TeleBot):
         except Exception as e:
             logger.error(f"Error in process_buy: {e}", exc_info=True)
             bot.send_message(message.chat.id, "Ошибка при покупке. Попробуйте снова.")
+    
+    # Отладочный обработчик для всех сообщений с животными (последний в цепочке)
+    @bot.message_handler(func=lambda message: hasattr(message, 'text') and message.text in ANIMALS)
+    def debug_animal_selection(message):
+        """Отладочный обработчик для выбора животных."""
+        us_name = message.from_user.first_name
+        state = get_user_state(us_name)
+        logger.warning(f"DEBUG: Animal message NOT HANDLED by specific handlers! User: {us_name}, Text: '{message.text}', Desire: '{state.desire}'")
+        bot.send_message(
+            message.chat.id, 
+            f"⚠️ Отладка: Получено '{message.text}', но desire='{state.desire}'. Сначала нажмите /buy или /sell"
+        )
 
 
 def show_available_goods(bot: TeleBot, message):
@@ -225,11 +288,13 @@ def show_available_goods(bot: TeleBot, message):
     state = get_user_state(us_name)
     
     try:
+        logger.info(f"show_available_goods: user {us_name}, setting desire='sell'")
         state.desire = 'sell'
         result = [SELL_AVAILABLE_HEADER]
         
         from config.settings import ANIMALS_NAMES
         
+        has_animals = False
         for i, animal in enumerate(ANIMALS):
             is_growing = False
             for growing in state.add_animals:
@@ -240,17 +305,26 @@ def show_available_goods(bot: TeleBot, message):
             count = state.count_dict.get(animal, 0)
             if count != 0 and not is_growing:
                 result.append(f"{ANIMALS_NAMES[i]}{count}")
+                has_animals = True
         
-        if len(result) > 1:
+        if has_animals:
             bot.send_message(message.chat.id, '\n'.join(result))
-        
-        bot.send_message(
-            message.chat.id,
-            SELL_PROMPT,
-            reply_markup=get_sell_keyboard()
-        )
+            bot.send_message(
+                message.chat.id,
+                SELL_PROMPT,
+                reply_markup=get_sell_keyboard()
+            )
+            logger.info(f"show_available_goods: sent sell keyboard to {us_name}")
+        else:
+            bot.send_message(
+                message.chat.id, 
+                "🚫 У вас сейчас нет животных для продажи.\nКупите животных сначала через /buy",
+                reply_markup=get_help_keyboard()
+            )
+            state.desire = ''  # Очистить desire так как продавать нечего
+            logger.info(f"show_available_goods: no animals, cleared desire")
     except Exception as e:
-        logger.error(f"Error in show_available_goods: {e}")
+        logger.error(f"Error in show_available_goods: {e}", exc_info=True)
 
 
 def update_user_data(state):

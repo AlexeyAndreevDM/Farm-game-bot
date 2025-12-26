@@ -30,7 +30,9 @@ def get_animals_keyboard():
     btn5 = types.KeyboardButton('Лошадь')
     btn6 = types.KeyboardButton('Овечку')
     btn7 = types.KeyboardButton('Гуся')
+    btn_back = types.KeyboardButton('❌ Назад')
     markup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7)
+    markup.add(btn_back)
     return markup
 
 
@@ -47,7 +49,9 @@ def get_sell_keyboard():
     btn8 = types.KeyboardButton('Овечью шерсть (кг)')
     btn9 = types.KeyboardButton('Куриные яйца (десятки)')
     btn10 = types.KeyboardButton('Коровье молоко (литры)')
+    btn_back = types.KeyboardButton('❌ Назад')
     markup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7, btn8, btn9, btn10)
+    markup.add(btn_back)
     return markup
 
 
@@ -55,10 +59,21 @@ def get_help_keyboard():
     """Инлайн-клавиатура с основными командами."""
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton(text='Help', callback_data='/help')
+    btn2 = types.InlineKeyboardButton(text='Account', callback_data='/account')
     btn3 = types.InlineKeyboardButton(text='Top', callback_data='/top')
     btn4 = types.InlineKeyboardButton(text='Costs', callback_data='/cost')
     btn5 = types.InlineKeyboardButton(text='Buy', callback_data='/buy')
     btn6 = types.InlineKeyboardButton(text='Myinfo', callback_data='/myinfo')
     btn7 = types.InlineKeyboardButton(text='Sell', callback_data='/sell')
-    markup.add(btn1, btn3, btn4, btn5, btn6, btn7)
+    markup.add(btn1, btn2)
+    markup.add(btn3, btn4, btn5)
+    markup.add(btn6, btn7)
+    return markup
+
+
+def get_back_keyboard():
+    """Простая клавиатура только с кнопкой Назад."""
+    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
+    btn_back = types.KeyboardButton('❌ Назад')
+    markup.add(btn_back)
     return markup

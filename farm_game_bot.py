@@ -25,6 +25,7 @@ from handlers.registration import register_registration_handlers
 from handlers.shop import register_shop_handlers
 from handlers.info import register_info_handlers
 from handlers.callbacks import register_callback_handlers
+from handlers.account import register_account_handlers
 
 # Настройка логирования
 logging.basicConfig(
@@ -55,6 +56,7 @@ def main():
         register_callback_handlers(bot)  # Должен быть первым
         register_start_handlers(bot)
         register_registration_handlers(bot)
+        register_account_handlers(bot)
         register_shop_handlers(bot)
         register_info_handlers(bot)
         

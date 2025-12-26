@@ -155,6 +155,17 @@ class DatabaseManager:
             logger.error(f"Error updating user: {e}")
             raise
     
+    def delete_user(self, us_name: str):
+        """Удаление пользователя из базы данных."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM goods WHERE us_name = ?', (us_name,))
+                logger.info(f"User {us_name} deleted successfully")
+        except Exception as e:
+            logger.error(f"Error deleting user: {e}")
+            raise
+    
     def get_top_users(self, limit: int = 10) -> list:
         """Получение топа пользователей по суммарной стоимости активов."""
         try:

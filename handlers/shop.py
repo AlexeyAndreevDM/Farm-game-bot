@@ -247,7 +247,7 @@ def register_shop_handlers(bot: TeleBot):
             
             # Добавление в растущие животные
             grow_time = ANIMALS_GROW_TIME[state.buyan]
-            grow_until = (dt.datetime.now() + dt.timedelta(hours=grow_time)).strftime("%A %d-%B-%y %H:%M:%S")
+            grow_until = (dt.datetime.now() + dt.timedelta(seconds=grow_time)).strftime("%A %d-%B-%y %H:%M:%S")
             state.add_animals.append([state.buyan, str(amount), grow_until])
             
             bot.send_message(

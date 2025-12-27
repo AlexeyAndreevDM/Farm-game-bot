@@ -129,19 +129,31 @@ def register_account_handlers(bot: TeleBot):
             
             # Проверяем существует ли пользователь
             if db_manager.user_exists(telegram_user):
-                # Пользователь уже есть - просто загружаем данные
+                # Пользователь уже есть - загружаем данные
                 user_data = db_manager.get_user_data(telegram_user)
-                if user_data:
+                if user_data and user_data[1].strip():  # Если есть данные И name не пустой
                     state.name = user_data[1]
                     state.money = user_data[2]
                     from utils.helpers import string_to_animals_dict
                     state.count_dict = string_to_animals_dict(user_data[3])
                     logger.info(f"use_telegram_name: loaded existing user {telegram_user}, name={state.name}")
                 else:
-                    # Данные не найдены - устанавливаем дефолтные
+                    # Данных нет ИЛИ name пустой - устанавливаем и обновляем
                     state.name = telegram_user
                     state.money = 50000
-                    logger.info(f"use_telegram_name: user exists but no data, setting defaults")
+                    state.desire = ''
+                    
+                    # Обновляем запись в БД
+                    from utils.helpers import animals_dict_to_string
+                    animals_str = animals_dict_to_string(state.count_dict)
+                    db_manager.update_user(
+                        us_name=telegram_user,
+                        name=telegram_user,
+                        money=50000,
+                        animals=animals_str,
+                        ad_animals=''
+                    )
+                    logger.info(f"use_telegram_name: user exists but name empty, updated with name={telegram_user}")
             else:
                 # Создаем нового пользователя с начальным балансом 50000
                 state.name = telegram_user
@@ -201,14 +213,17 @@ def register_account_handlers(bot: TeleBot):
                 
                 # Проверяем существует ли пользователь
                 if db_manager.user_exists(telegram_user):
-                    # Пользователь уже есть - загружаем данные
-                    user_data = db_manager.get_user_data(telegram_user)
-                    if user_data:
-                        state.name = user_data[1]
-                        state.money = user_data[2]
-                        from utils.helpers import string_to_animals_dict
-                        state.count_dict = string_to_animals_dict(user_data[3])
-                        logger.info(f"process_nickname_input: loaded existing user {telegram_user}")
+                    # Пользователь уже есть - обновляем name в БД
+                    from utils.helpers import animals_dict_to_string
+                    animals_str = animals_dict_to_string(state.count_dict)
+                    db_manager.update_user(
+                        us_name=telegram_user,
+                        name=nickname,
+                        money=50000,
+                        animals=animals_str,
+                        ad_animals=''
+                    )
+                    logger.info(f"process_nickname_input: updated user {telegram_user} with name={nickname}")
                 else:
                     # Создаем нового
                     db_manager.create_user(

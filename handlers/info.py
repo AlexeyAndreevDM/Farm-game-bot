@@ -16,6 +16,28 @@ def myinfo_command_impl(bot: TeleBot, message):
     us_name = message.from_user.first_name
     state = get_user_state(us_name)
     try:
+        # Проверяем что аккаунт создан
+        if state.name == '':
+            # Аккаунт не создан - предложим создать
+            from telebot.types import ReplyKeyboardMarkup, KeyboardButton
+            account_info = f"👋 Добро пожаловать в Ферма Бот, {us_name}!\n\n"
+            account_info += f"У вас еще нет игрового аккаунта.\n"
+            account_info += f"Создать аккаунт с начальным балансом 50000 ₽?"
+            
+            markup = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
+            markup.add(KeyboardButton('✅ Создать аккаунт'))
+            markup.add(KeyboardButton('❌ Отмена'))
+            
+            bot.send_message(message.chat.id, account_info, reply_markup=markup)
+            bot.send_message(
+                message.chat.id,
+                get_random_phrase(),
+                reply_markup=get_help_keyboard()
+            )
+            logger.info(f"myinfo_command_impl: account not created for user {us_name}")
+            return
+        
+        # Аккаунт создан - показываем информацию
         animals_info = format_animals_string(state.count_dict, state.add_animals)
         topplace = db_manager.get_user_rank(us_name)
         if topplace == 0:

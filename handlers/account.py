@@ -44,7 +44,7 @@ def account_command_impl(bot: TeleBot, message):
             bot.send_message(message.chat.id, account_info, reply_markup=markup, parse_mode='Markdown')
         else:
             # Новый пользователь или аккаунт не создан
-            account_info = f"👋 Добро пожаловать в Ферма Бот в Ферма Бот, {telegram_user}!\n\n"
+            account_info = f"👋 Добро пожаловать в Ферма Бот, {telegram_user}!\n\n"
             account_info += f"У вас еще нет игрового аккаунта.\n"
             account_info += f"Создать аккаунт с начальным балансом 50000 ₽?"
             
